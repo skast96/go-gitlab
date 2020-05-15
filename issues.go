@@ -122,16 +122,49 @@ func (i Issue) String() string {
 }
 
 // Labels is a custom type with specific marshaling characteristics.
-type Labels []string
+// Map Labels to a []string or to LabelDetails
+type Labels struct {
+	Data interface{}
+}
+
+type LabelDetails struct {
+	ID              int    `json:"id"`
+	Name            string `json:"name"`
+	Color           string `json:"color"`
+	Description     string `json:"description"`
+	DescriptionHTML string `json:"description_html"`
+	TextColor       string `json:"text_color"`
+}
 
 // MarshalJSON implements the json.Marshaler interface.
 func (l *Labels) MarshalJSON() ([]byte, error) {
-	return json.Marshal(strings.Join(*l, ","))
+	if w, ok := l.Data.([]string); ok {
+		return json.Marshal(strings.Join(w, ","))
+	}
+	return json.Marshal(l.Data)
+}
+
+func (l *Labels) UnmarshalJSON(data []byte) error {
+	var stringArr []string
+	var detailedLabels []LabelDetails
+	if err := json.Unmarshal(data, &stringArr); err != nil {
+		if err := json.Unmarshal(data, &detailedLabels); err != nil {
+			return err
+		}
+		l.Data = detailedLabels
+		return nil
+	}
+	l.Data = stringArr
+	return nil
 }
 
 // EncodeValues implements the query.EncodeValues interface
 func (l *Labels) EncodeValues(key string, v *url.Values) error {
-	v.Set(key, strings.Join(*l, ","))
+
+	if w, ok := l.Data.([]string); ok {
+		v.Set(key, strings.Join(w, ","))
+		return nil
+	}
 	return nil
 }
 
